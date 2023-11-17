@@ -14,9 +14,10 @@ from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
 
 
-model = create_model('./models/cldm_v21.yaml').cpu()
-model.load_state_dict(load_state_dict('./lightning_logs/version_2/checkpoints/epoch=1-step=1439.ckpt', location='cuda'))
-model = model.cuda()
+model = create_model('./models/cldm_v21.yaml').cuda()
+# model = create_model('./models/cldm_v21.yaml').cpu()
+model.load_state_dict(load_state_dict('./lightning_logs/version_21/checkpoints/epoch=0-step=30296.ckpt', location='cpu'))
+# model = model.cuda()
 ddim_sampler = DDIMSampler(model)
 
 
@@ -30,6 +31,7 @@ def process(input_image, prompt, a_prompt, n_prompt, num_samples, image_resoluti
         # detected_map[np.min(img, axis=2) < 127] = 255
 
         control = torch.from_numpy(detected_map.copy()).float().cuda() / 255.0
+        # control = torch.from_numpy(detected_map.copy()).float().cpu() / 255.0
         control = torch.stack([control for _ in range(num_samples)], dim=0)
         control = einops.rearrange(control, 'b h w c -> b c h w').clone()
 
@@ -58,8 +60,31 @@ def process(input_image, prompt, a_prompt, n_prompt, num_samples, image_resoluti
 
         x_samples = model.decode_first_stage(samples)
         x_samples = (einops.rearrange(x_samples, 'b c h w -> b h w c') * 127.5 + 127.5).cpu().numpy().clip(0, 255).astype(np.uint8)
+        # x_samples = (einops.rearrange(x_samples, 'b c h w -> c h w b') * 127.5 + 127.5).cpu().numpy().clip(0, 255).astype(np.uint8)
+        # x_samples = np.transpose(x_samples, (0, 3, 1, 2))
+        unpacked_samples = []
+        unpacked_masks = []
+        for channel in range(2):
+            mask_1ch = detected_map[:, :, channel]
+            mask_3ch = np.stack([mask_1ch, mask_1ch, mask_1ch], axis=2)
+            unpacked_masks.append(mask_3ch)
 
-        results = [x_samples[i] for i in range(num_samples)]
+        for i in range(x_samples.shape[0]):
+            for channel in range(2):
+                sample_1ch = x_samples[i, :, :, channel]
+                sample_3ch = np.stack([sample_1ch, sample_1ch, sample_1ch], axis=2)
+                unpacked_samples.append(sample_3ch)
+                
+            unpacked_samples.extend(unpacked_masks)
+
+
+        # print('x_samples.dtype', x_samples.dtype)
+        # samples_unpacked = np.transpose(x_samples, (3, 1, 2, 0))
+        # x_samples = samples_unpacked
+
+
+        # results = [x_samples[i] for i in range(num_samples)]
+        results = unpacked_samples
     # return [255 - detected_map] + results
     return results
 
