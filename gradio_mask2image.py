@@ -13,11 +13,13 @@ from annotator.util import resize_image, HWC3
 from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
 
+# model_checkpoint = './lightning_logs/version_21/checkpoints/epoch=0-step=30296.ckpt' # less than 1 epoch
+model_checkpoint = 'lightning_logs/version_23/checkpoints/epoch=3-step=121187.ckpt'
 
 model = create_model('./models/cldm_v21.yaml').cuda()
 # model = create_model('./models/cldm_v21.yaml').cpu()
-model.load_state_dict(load_state_dict('./lightning_logs/version_21/checkpoints/epoch=0-step=30296.ckpt', location='cpu'))
-# model = model.cuda()
+model.load_state_dict(load_state_dict(model_checkpoint, location='cpu'))
+model = model.cuda()
 ddim_sampler = DDIMSampler(model)
 
 
@@ -95,12 +97,12 @@ with block:
         gr.Markdown("## Control Stable Diffusion with Cardiac Segmentation Mask")
     with gr.Row():
         with gr.Column():
-            prompt = gr.Textbox(label="Prompt", value="Female, in age 70s, normal BMI", placeholder="Female, in age 70s, normal BMI")
+            prompt = gr.Textbox(label="Prompt", value="Female, in age 70s, normal BMI, healthy", placeholder="Female, in age 70s, normal BMI, healthy")
             input_image = gr.Image(sources='upload', type="numpy", height=256)
             run_button = gr.Button(value="Generate")
             with gr.Accordion("Advanced options", open=False):
                 num_samples = gr.Slider(label="Images", minimum=1, maximum=12, value=1, step=1)
-                image_resolution = gr.Slider(label="Image Resolution", minimum=256, maximum=768, value=512, step=64)
+                image_resolution = gr.Slider(label="Image Resolution", minimum=64, maximum=768, value=128, step=64)
                 strength = gr.Slider(label="Control Strength", minimum=0.0, maximum=2.0, value=1.0, step=0.01)
                 guess_mode = gr.Checkbox(label='Guess Mode', value=False)
                 ddim_steps = gr.Slider(label="Steps", minimum=1, maximum=100, value=20, step=1)
