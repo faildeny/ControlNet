@@ -6,10 +6,14 @@ from tutorial_dataset import MyDataset
 from cldm.logger import ImageLogger
 from cldm.model import create_model, load_state_dict
 
+# 24 1:05
+# 8 1:40
+# 1*2 6:05
 
 # Configs
 resume_path = './models/control_sd21_ini.ckpt'
-batch_size = 1
+# resume_path = 'lightning_logs/version_21/checkpoints/epoch=0-step=30296.ckpt'
+batch_size = 24
 logger_freq = 300
 learning_rate = 1e-5
 sd_locked = True
@@ -26,9 +30,9 @@ model.only_mid_control = only_mid_control
 
 # Misc
 dataset = MyDataset()
-dataloader = DataLoader(dataset, num_workers=0, batch_size=batch_size, shuffle=True)
+dataloader = DataLoader(dataset, num_workers=20, batch_size=batch_size, shuffle=True)
 logger = ImageLogger(batch_frequency=logger_freq)
-trainer = pl.Trainer(gpus=1, precision=32, callbacks=[logger])
+trainer = pl.Trainer(gpus=1, precision=32, callbacks=[logger], accumulate_grad_batches=1)
 
 
 # Train!

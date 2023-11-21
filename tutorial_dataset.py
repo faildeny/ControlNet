@@ -5,7 +5,10 @@ import numpy as np
 from torch.utils.data import Dataset
 
 
-dataset_path = "./training/sa_1ch_debug/" 
+# dataset_path = "./training/sa_1ch_debug/" 
+dataset_path = "./training/stacked_EDES_resized_128/"
+
+size = 128
 
 class MyDataset(Dataset):
     def __init__(self):
@@ -29,6 +32,10 @@ class MyDataset(Dataset):
         # Do not forget that OpenCV read images in BGR order.
         source = cv2.cvtColor(source, cv2.COLOR_BGR2RGB)
         target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
+
+        # # Resize source images.
+        # source = cv2.resize(source, (size, size), interpolation=cv2.INTER_AREA)
+        # target = cv2.resize(target, (size, size), interpolation=cv2.INTER_AREA)
 
         # Normalize source images to [0, 1].
         source = source.astype(np.float32) / 255.0
