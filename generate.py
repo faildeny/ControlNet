@@ -3,6 +3,7 @@ import config
 import os
 from pathlib import Path
 
+from tqdm import tqdm
 import cv2
 import einops
 import gradio as gr
@@ -18,9 +19,13 @@ from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
 
 
-source_dataset_path = "./training/stacked_EDES_resized_128/"
+source_dataset_path = "./training/stacked_EDES_resized_128"
+
+
+
 # model_checkpoint = './lightning_logs/version_21/checkpoints/epoch=0-step=30296.ckpt' # less than 1 epoch
-model_checkpoint = 'lightning_logs/version_23/checkpoints/epoch=3-step=121187.ckpt'
+# model_checkpoint = 'lightning_logs/version_23/checkpoints/epoch=3-step=121187.ckpt' # 512
+model_checkpoint = 'lightning_logs/version_43/checkpoints/epoch=18-step=71971.ckpt' # 128 
 
 model = create_model('./models/cldm_v21.yaml').cuda()
 model.load_state_dict(load_state_dict(model_checkpoint, location='cpu'))
@@ -75,22 +80,26 @@ def generate_synthetic_copy(dataset_path, output_path=None, per_sample_multiplie
         print(dataset_path)
         print(os.path.basename(dataset_path))
         output_name = os.path.basename(dataset_path) + "_synthetic"
-        output_path = os.path.join(out_dir, output_name)
+        output_dir = os.path.join(out_dir, output_name)
 
-    os.makedirs(output_path, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
 
     dataset = MyDataset()
     dataloader = DataLoader(dataset, num_workers=20, batch_size=1, shuffle=True)
-    for item in dataloader:
-        jpg = item['jpg']
-        txt = item['txt']
-        hint = item['hint']
-        samples = process(hint[0], txt[0], "", "", 1, hint.shape[1])
+    for item in tqdm(dataloader):
+        jpg = item['jpg'][0]
+        txt = item['txt'][0]
+        hint = item['hint'][0]
+        filename = item['filename'][0]
+        samples = process(hint, txt, "", "", 1, hint.shape[1])
         for i in range(samples.shape[0]):
             sample = samples[i]
             # sample = sample.transpose(1, 2, 0)
             sample = cv2.cvtColor(sample, cv2.COLOR_RGB2BGR)
-            cv2.imwrite(os.path.join(output_path, f'{i}.png'), sample)
+            filename = Path(filename).stem
+            output_path = os.path.join(output_dir, f'{filename}_synthetic_{i}.png')
+            print(output_path)
+            cv2.imwrite(output_path, sample)
 
 
 generate_synthetic_copy(source_dataset_path)

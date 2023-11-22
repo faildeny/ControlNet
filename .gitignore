@@ -3,6 +3,7 @@
 training/
 lightning_logs/
 image_log/
+synthetic_dataset/
 
 *.pth
 *.pt
