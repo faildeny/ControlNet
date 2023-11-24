@@ -6,9 +6,8 @@ from torch.utils.data import Dataset
 
 
 # dataset_path = "./training/sa_1ch_debug/" 
+# dataset_path = "./training/stacked_EDES_resized_512/"
 dataset_path = "./training/stacked_EDES_resized_128/"
-
-size = 128
 
 class MyDataset(Dataset):
     def __init__(self):

@@ -2,6 +2,8 @@ import einops
 import torch
 import torch as th
 import torch.nn as nn
+from prettytable import PrettyTable
+
 
 from ldm.modules.diffusionmodules.util import (
     conv_nd,
@@ -360,6 +362,7 @@ class ControlLDM(LatentDiffusion):
         log["reconstruction"] = self.decode_first_stage(z)
         log["control"] = c_cat * 2.0 - 1.0
         log["conditioning"] = log_txt_as_img((512, 512), batch[self.cond_stage_key], size=16)
+        log["filename"] = log_txt_as_img((512, 512), batch["filename"], size=16)
 
         if plot_diffusion_rows:
             # get diffusion row
@@ -412,13 +415,45 @@ class ControlLDM(LatentDiffusion):
         shape = (self.channels, h // 8, w // 8)
         samples, intermediates = ddim_sampler.sample(ddim_steps, batch_size, shape, cond, verbose=False, **kwargs)
         return samples, intermediates
+    
+
+    def count_parameters(self, model):
+        table = PrettyTable(["Modules", "Parameters"])
+        total_params = 0
+        for name, parameter in model.named_parameters():
+            if not parameter.requires_grad:
+                continue
+            params = parameter.numel()
+            table.add_row([name, params])
+            total_params += params
+        # print(table)
+        print(f"Total Trainable Params: {total_params}")
+        return total_params
 
     def configure_optimizers(self):
         lr = self.learning_rate
-        params = list(self.control_model.parameters())
+        if not self.control_locked:
+            params = list(self.control_model.parameters())
+            total_nbytes = 0
+            for p in params:
+                total_nbytes += p.numel()
+            print(f"ControlNet Trainable Params: {total_nbytes / 1e6}")
+        else:
+            params = []
         if not self.sd_locked:
-            params += list(self.model.diffusion_model.output_blocks.parameters())
-            params += list(self.model.diffusion_model.out.parameters())
+            sd_params = list(self.model.diffusion_model.output_blocks.parameters())
+            sd_params += list(self.model.diffusion_model.out.parameters())
+            params += sd_params
+            total_nbytes = 0
+            for p in sd_params:
+                total_nbytes += p.numel()
+            print(f"SD Trainable Params: {total_nbytes / 1e6}")
+        
+        total_nbytes = 0
+        for p in params:
+            total_nbytes += p.numel()
+        print(f"Total Trainable Params: {total_nbytes / 1e6}")
+
         opt = torch.optim.AdamW(params, lr=lr)
         return opt
 

@@ -1,4 +1,5 @@
 import os
+import shutil
 import cv2
 from tqdm import tqdm
 
@@ -28,6 +29,6 @@ for image_dir in subdirs:
             counter += 1
 
 prompt_path = os.path.join(out_directory, "prompt.json")
-os.copy(prompt_path, os.path.join(out_directory, "prompt.json"))
+shutil.copy(prompt_path, os.path.join(out_directory, "prompt.json"))
 
 print("Resized ", counter, " images.")
