@@ -347,7 +347,7 @@ class ControlLDM(LatentDiffusion):
         return self.get_learned_conditioning([""] * N)
 
     @torch.no_grad()
-    def log_images(self, batch, N=4, n_row=2, sample=False, ddim_steps=50, ddim_eta=0.0, return_keys=None,
+    def log_images(self, batch, N=4, n_row=1, sample=False, ddim_steps=50, ddim_eta=0.0, return_keys=None,
                    quantize_denoised=True, inpaint=True, plot_denoise_rows=False, plot_progressive_rows=True,
                    plot_diffusion_rows=False, unconditional_guidance_scale=9.0, unconditional_guidance_label=None,
                    use_ema_scope=True,
@@ -361,8 +361,9 @@ class ControlLDM(LatentDiffusion):
         n_row = min(z.shape[0], n_row)
         log["reconstruction"] = self.decode_first_stage(z)
         log["control"] = c_cat * 2.0 - 1.0
-        log["conditioning"] = log_txt_as_img((512, 512), batch[self.cond_stage_key], size=16)
-        log["filename"] = log_txt_as_img((512, 512), batch["filename"], size=16)
+        text_panel_size = (128, 128)
+        log["conditioning"] = log_txt_as_img(text_panel_size, batch[self.cond_stage_key], size=16)
+        log["filename"] = log_txt_as_img(text_panel_size, batch["filename"], size=16)
 
         if plot_diffusion_rows:
             # get diffusion row
@@ -375,6 +376,8 @@ class ControlLDM(LatentDiffusion):
                     noise = torch.randn_like(z_start)
                     z_noisy = self.q_sample(x_start=z_start, t=t, noise=noise)
                     diffusion_row.append(self.decode_first_stage(z_noisy))
+            
+            diffusion_row = diffusion_row[:4]
 
             diffusion_row = torch.stack(diffusion_row)  # n_log_step, n_row, C, H, W
             diffusion_grid = rearrange(diffusion_row, 'n b c h w -> b n c h w')
@@ -441,8 +444,9 @@ class ControlLDM(LatentDiffusion):
         else:
             params = []
         if not self.sd_locked:
-            sd_params = list(self.model.diffusion_model.output_blocks.parameters())
-            sd_params += list(self.model.diffusion_model.out.parameters())
+            sd_params = list(self.model.diffusion_model.parameters())
+            # sd_params = list(self.model.diffusion_model.output_blocks.parameters())
+            # sd_params += list(self.model.diffusion_model.out.parameters())
             params += sd_params
             total_nbytes = 0
             for p in sd_params:
