@@ -14,6 +14,8 @@ from cldm.model import create_model, load_state_dict
 # 1*2 6:05
 
 model = '1.5'
+# stage = 'SD'
+stage = 'control'
 
 if model == '2.1':
     model_definition = './models/cldm_v21.yaml'
@@ -24,16 +26,23 @@ if model == '2.1':
 
 elif model == '1.5':
     model_definition = './models/cldm_v15.yaml'
-    resume_path = './models/control_sd15_ini.ckpt'
+    # resume_path = './models/control_sd15_ini.ckpt'
+    # resume_path = 'logs/Nov28_11-49-38_model_SD_1.5_128_lr_2e-06_sd_locked_False_control_locked_True/lightning_logs/version_0/checkpoints/epoch=1-step=7575.ckpt' # Full SD finetune
+    resume_path = 'logs/Nov28_15-16-30_model_SD_1.5_128_lr_2e-06_sd_locked_False_control_locked_True/lightning_logs/version_0/checkpoints/epoch=23-step=90911.ckpt' # Full SD moar epochs finetune
+    # resume_path = 'logs/Nov24_15-58-06_model_SD_1.5_128_lr_2e-06_sd_locked_False_control_locked_True/lightning_logs/version_0/checkpoints/epoch=17-step=51137.ckpt'
 
-
-batch_size = 32
+batch_size = 24
 logger_freq = 300
-# learning_rate = 1e-5
-learning_rate = 2e-6
-sd_locked = False
-control_locked = False
 only_mid_control = False
+
+if stage == 'SD':
+    sd_locked = False
+    control_locked = True
+    learning_rate = 2e-6
+elif stage == 'control':
+    sd_locked = True
+    control_locked = False
+    learning_rate = 1e-5
 
 appendix = "_model_SD_" + model + "_128" + "_lr_" + str(learning_rate) + "_sd_locked_" + str(sd_locked) + "_control_locked_" + str(control_locked)
 current_time = datetime.now().strftime("%b%d_%H-%M-%S")
@@ -52,7 +61,7 @@ logger_params = dict(sample = True, plot_denoise_rows= False, plot_diffusion_row
 
 # Misc
 dataset = MyDataset()
-dataloader = DataLoader(dataset, num_workers=2, batch_size=batch_size, shuffle=True)
+dataloader = DataLoader(dataset, num_workers=20, batch_size=batch_size, shuffle=True)
 logger = ImageLogger(batch_frequency=logger_freq, log_images_kwargs=logger_params)
 trainer = pl.Trainer(gpus=1, precision=32, callbacks=[logger], default_root_dir=log_dir, accumulate_grad_batches=1)
 
