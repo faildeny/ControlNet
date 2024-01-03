@@ -33,6 +33,28 @@ model = model.cuda()
 ddim_sampler = DDIMSampler(model)
 
 
+feature_to_find = "heart failure"
+dataset = MyDataset()
+diagnosed_masks = []
+for sample in dataset:
+    prompt = sample['txt']
+    if feature_to_find in prompt:
+        diagnosed_masks.append(sample['hint'])
+
+sex = ['Male', 'Female']
+age = ['age in 50s', 'age in 60s', 'age in 70s', 'age in 80s', 'age in 90s']
+bmi = ['normal BMI', 'overweight BMI', 'obese BMI']
+diagnosis = ['healthy', 'heart failure']
+
+features = [sex, age, bmi, diagnosis]
+
+def generate_prompt(features):
+    prompt = ""
+    for feature in features:
+        chosen_value = random.choice(feature)
+        prompt += ", " + chosen_value
+    prompt = prompt[2:]
+
 def process(input_image, prompt, a_prompt, n_prompt, num_samples, image_resolution, ddim_steps=20, guess_mode=False, strength=1, scale=9, seed=-1, eta=0):
     with torch.no_grad():
         
@@ -73,6 +95,13 @@ def process(input_image, prompt, a_prompt, n_prompt, num_samples, image_resoluti
     return x_samples
 
 
+n_samples = 10
+for i in n_samples:
+    prompt = generate_prompt(features)
+    mask = random.choice(diagnosed_masks)
+    samples = process(mask, prompt, "", "", 1, mask.shape[1])
+
+
 def generate_synthetic_copy(dataset_path, output_path=None, per_sample_multiplier=1):
     out_dir = 'synthetic_dataset'
 
@@ -91,7 +120,7 @@ def generate_synthetic_copy(dataset_path, output_path=None, per_sample_multiplie
         txt = item['txt'][0]
         hint = item['hint'][0]
         filename = item['filename'][0]
-        samples = process(hint, txt, "", "", 1, hint.shape[1])
+        samples = process(hint, txt, "", "", per_sample_multiplier, hint.shape[1])
         for i in range(samples.shape[0]):
             sample = samples[i]
             # sample = sample.transpose(1, 2, 0)
@@ -101,5 +130,4 @@ def generate_synthetic_copy(dataset_path, output_path=None, per_sample_multiplie
             print(output_path)
             cv2.imwrite(output_path, sample)
 
-
-generate_synthetic_copy(source_dataset_path)
+# generate_synthetic_copy(source_dataset_path)
