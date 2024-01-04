@@ -21,17 +21,21 @@ from cldm.ddim_hacked import DDIMSampler
 
 source_dataset_path = "./training/stacked_EDES_resized_128"
 
-
-
 # model_checkpoint = './lightning_logs/version_21/checkpoints/epoch=0-step=30296.ckpt' # less than 1 epoch
-# model_checkpoint = 'lightning_logs/version_23/checkpoints/epoch=3-step=121187.ckpt' # 512
-model_checkpoint = 'lightning_logs/version_43/checkpoints/epoch=18-step=71971.ckpt' # 128 
+model_checkpoint = 'lightning_logs/version_23/checkpoints/epoch=3-step=121187.ckpt' # 512
+# model_checkpoint = 'lightning_logs/version_43/checkpoints/epoch=18-step=71971.ckpt' # 128 
+
+sex = ['Male', 'Female']
+age = ['age in 50s', 'age in 60s', 'age in 70s', 'age in 80s', 'age in 90s']
+bmi = ['normal BMI', 'overweight BMI', 'obese BMI']
+diagnosis = ['healthy', 'heart failure']
+
+features = [sex, age, bmi, diagnosis]
 
 model = create_model('./models/cldm_v21.yaml').cuda()
 model.load_state_dict(load_state_dict(model_checkpoint, location='cpu'))
 model = model.cuda()
 ddim_sampler = DDIMSampler(model)
-
 
 feature_to_find = "heart failure"
 dataset = MyDataset()
@@ -41,12 +45,9 @@ for sample in dataset:
     if feature_to_find in prompt:
         diagnosed_masks.append(sample['hint'])
 
-sex = ['Male', 'Female']
-age = ['age in 50s', 'age in 60s', 'age in 70s', 'age in 80s', 'age in 90s']
-bmi = ['normal BMI', 'overweight BMI', 'obese BMI']
-diagnosis = ['healthy', 'heart failure']
+    # if len(diagnosed_masks) >= 10:
+    #     break
 
-features = [sex, age, bmi, diagnosis]
 
 def generate_prompt(features):
     prompt = ""
@@ -54,6 +55,9 @@ def generate_prompt(features):
         chosen_value = random.choice(feature)
         prompt += ", " + chosen_value
     prompt = prompt[2:]
+
+    return prompt
+
 
 def process(input_image, prompt, a_prompt, n_prompt, num_samples, image_resolution, ddim_steps=20, guess_mode=False, strength=1, scale=9, seed=-1, eta=0):
     with torch.no_grad():
@@ -95,13 +99,6 @@ def process(input_image, prompt, a_prompt, n_prompt, num_samples, image_resoluti
     return x_samples
 
 
-n_samples = 10
-for i in n_samples:
-    prompt = generate_prompt(features)
-    mask = random.choice(diagnosed_masks)
-    samples = process(mask, prompt, "", "", 1, mask.shape[1])
-
-
 def generate_synthetic_copy(dataset_path, output_path=None, per_sample_multiplier=1):
     out_dir = 'synthetic_dataset'
 
@@ -130,4 +127,24 @@ def generate_synthetic_copy(dataset_path, output_path=None, per_sample_multiplie
             print(output_path)
             cv2.imwrite(output_path, sample)
 
+
+def generate_random_prompt_dataset(output_dir, n_samples = 10):
+    os.makedirs(output_dir, exist_ok=True)
+
+    for i in tqdm(range(n_samples)):
+        prompt = generate_prompt(features)
+        mask = random.choice(diagnosed_masks)
+        mask = torch.from_numpy(mask)
+
+        sample = process(mask, prompt, "", "", 1, mask.shape[1])[0]
+
+        filename = prompt.replace(", ", "_").replace(" ", "_")
+        filename = f'{i}_{filename}.png'
+        output_path = os.path.join(output_dir, filename)
+        sample = cv2.cvtColor(sample, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(output_path, sample)
+
+
+generate_random_prompt_dataset("synthetic_dataset/random_dataset", 10)
 # generate_synthetic_copy(source_dataset_path)
+
