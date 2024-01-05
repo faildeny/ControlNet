@@ -1,17 +1,19 @@
 import json
 import cv2
 import numpy as np
+import os
 
 from torch.utils.data import Dataset
 
 
-# dataset_path = "./training/sa_1ch_debug/" 
-# dataset_path = "./training/stacked_EDES_resized_512/"
-dataset_path = "./training/stacked_EDES_resized_128/"
+# dataset_path = "./training/sa_1ch_debug/"
+dataset_path = "./training/stacked_EDES_resized_512/"
+# dataset_path = "./training/stacked_EDES_resized_128/"
 
 class MyDataset(Dataset):
     def __init__(self):
         self.data = []
+        self.dataset_path = dataset_path
         with open(dataset_path+'prompt.json', 'rt') as f:
             for line in f:
                 self.data.append(json.loads(line))
@@ -43,4 +45,7 @@ class MyDataset(Dataset):
         target = (target.astype(np.float32) / 127.5) - 1.0
 
         return dict(jpg=target, txt=prompt, hint=source, filename=target_filename)
+    
+    def get_samples_list(self):
+        return self.data
 
