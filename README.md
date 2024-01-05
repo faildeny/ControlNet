@@ -1,3 +1,34 @@
+# Latent Diffusion Model with ControlNet for fairness in cardiac MRI
+Follow the original installation [instructions](#production-ready-pretrained-models) to set up the environment first.
+
+### Changes in this fork:
+
+This fork allows to fine-tune the full SD architecture and train ControlNet as well.
+
+# Training
+To train the Stable Diffusion model with ControlNet run:
+```
+python train.py
+```
+Before training check this file for training configuration including:
+- Stable diffusion (SD) model (1.5 or 2.1)
+- Fine-tune SD layers
+- Train ControlNet model
+
+# Synthetic dataset generation
+To create a synthetic dataset from the diffusion model run:
+
+```
+python generate_synthetic_dataset.py
+```
+You can choose one of the generation methods:
+ - `generate_synthetic_copy` use real prompts and masks from the training dataset
+ - `generate_random_prompt_dataset` use randomly generated prompts and randomly selected masks from corresponding labels (healthy or heart failure)
+
+
+### End of fork modifications.
+
+
 # News: A nightly version of ControlNet 1.1 is released!
 
 [ControlNet 1.1](https://github.com/lllyasviel/ControlNet-v1-1-nightly) is released. Those new models will be merged to this repo after we make sure that everything is good.
