@@ -1,4 +1,4 @@
-# Latent Diffusion Model with ControlNet for fairness in cardiac MRI
+# Latent Diffusion Model with ControlNet for Fairness in Cardiac MRI
 Follow the original installation [instructions](#production-ready-pretrained-models) to set up the environment first.
 
 ### Changes in this fork:
