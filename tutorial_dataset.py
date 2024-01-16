@@ -7,7 +7,8 @@ from torch.utils.data import Dataset
 
 
 # dataset_path = "./training/sa_1ch_debug/"
-dataset_path = "./training/stacked_EDES_resized_512/"
+# dataset_path = "./training/stacked_EDES_resized_512/"
+dataset_path = "./training/stacked_EDES_fold_0_prev_0_01_resized_512/"
 # dataset_path = "./training/stacked_EDES_resized_128/"
 
 class MyDataset(Dataset):
@@ -17,6 +18,7 @@ class MyDataset(Dataset):
         with open(dataset_path+'prompt.json', 'rt') as f:
             for line in f:
                 self.data.append(json.loads(line))
+        print("Loaded ", len(self.data), " samples.")
 
     def __len__(self):
         return len(self.data)

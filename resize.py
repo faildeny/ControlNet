@@ -3,7 +3,7 @@ import shutil
 import cv2
 from tqdm import tqdm
 
-directory = "training/stacked_EDES"
+directory = "training/stacked_EDES_fold_0_prev_0_01"
 subdirs = ["source", "target"]
 
 
@@ -28,7 +28,7 @@ for image_dir in subdirs:
             cv2.imwrite(os.path.join(output_path, filename), img)
             counter += 1
 
-prompt_path = os.path.join(out_directory, "prompt.json")
+prompt_path = os.path.join(directory, "prompt.json")
 shutil.copy(prompt_path, os.path.join(out_directory, "prompt.json"))
 
 print("Resized ", counter, " images.")

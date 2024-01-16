@@ -186,6 +186,6 @@ def generate_random_prompt_dataset(output_dir, n_samples = 10):
 
 # Select one of the methods for synthetic dataset generation
 
-generate_random_prompt_dataset("synthetic_dataset/random_dataset", 10)
+generate_random_prompt_dataset("synthetic_dataset/random_dataset", 100)
 # generate_synthetic_copy(source_dataset_path)
 

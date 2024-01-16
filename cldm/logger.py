@@ -40,7 +40,7 @@ class ImageLogger(Callback):
             # print(k)
             # print(grid.shape)
         
-        order = [2, 1, 0, 5, 3, 4, 6]
+        order = [2, 1, 0, 4, 3, 5]
         grid_rows = [grid_rows[i] for i in order]
         k = 'results'
         filename = "{}_gs-{:06}_e-{:06}_b-{:06}.png".format(k, global_step, current_epoch, batch_idx)

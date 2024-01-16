@@ -14,9 +14,16 @@ from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
 
 # model_checkpoint = './lightning_logs/version_21/checkpoints/epoch=0-step=30296.ckpt' # less than 1 epoch
-model_checkpoint = 'lightning_logs/version_23/checkpoints/epoch=3-step=121187.ckpt'
+# model_checkpoint = 'lightning_logs/version_23/checkpoints/epoch=3-step=121187.ckpt'
+model_checkpoint = 'logs/Nov29_13-05-17_model_SD_1.5_128_lr_1e-05_sd_locked_True_control_locked_False/lightning_logs/version_0/checkpoints/epoch=24-step=94699.ckpt' # 128
+model_checkpoint = 'logs/Nov30_12-47-55_model_SD_2.1_512_lr_1e-05_sd_locked_True_control_locked_False/lightning_logs/version_0/checkpoints/epoch=4-step=227229.ckpt' # 512
+# model_checkpoint = 'lightning_logs/version_43/checkpoints/epoch=18-step=71971.ckpt' # 128
+# 
+res = 512 
+
 
 model = create_model('./models/cldm_v21.yaml').cuda()
+# model = create_model('./models/cldm_v15.yaml').cuda()
 # model = create_model('./models/cldm_v21.yaml').cpu()
 model.load_state_dict(load_state_dict(model_checkpoint, location='cpu'))
 model = model.cuda()
@@ -66,12 +73,23 @@ def process(input_image, prompt, a_prompt, n_prompt, num_samples, image_resoluti
         # x_samples = np.transpose(x_samples, (0, 3, 1, 2))
         unpacked_samples = []
         unpacked_masks = []
+        # Resize image and mask to requested resolution
+        resized_samples = np.zeros((x_samples.shape[0], res, res, 3), dtype=np.uint8)
+
+        for i in range(x_samples.shape[0]):
+            resized_samples[i] = cv2.resize(x_samples[i], (res, res), interpolation=cv2.INTER_LANCZOS4)
+        x_samples = resized_samples
+
+        detected_map = cv2.resize(detected_map, (res, res), interpolation=cv2.INTER_LANCZOS4)
+
+        unpacked_masks.append(detected_map)
         for channel in range(2):
             mask_1ch = detected_map[:, :, channel]
             mask_3ch = np.stack([mask_1ch, mask_1ch, mask_1ch], axis=2)
             unpacked_masks.append(mask_3ch)
 
         for i in range(x_samples.shape[0]):
+            unpacked_samples.append(x_samples[i])
             for channel in range(2):
                 sample_1ch = x_samples[i, :, :, channel]
                 sample_3ch = np.stack([sample_1ch, sample_1ch, sample_1ch], axis=2)
@@ -102,7 +120,7 @@ with block:
             run_button = gr.Button(value="Generate")
             with gr.Accordion("Advanced options", open=False):
                 num_samples = gr.Slider(label="Images", minimum=1, maximum=12, value=1, step=1)
-                image_resolution = gr.Slider(label="Image Resolution", minimum=64, maximum=768, value=128, step=64)
+                image_resolution = gr.Slider(label="Image Resolution", minimum=64, maximum=768, value=res, step=64)
                 strength = gr.Slider(label="Control Strength", minimum=0.0, maximum=2.0, value=1.0, step=0.01)
                 guess_mode = gr.Checkbox(label='Guess Mode', value=False)
                 ddim_steps = gr.Slider(label="Steps", minimum=1, maximum=100, value=20, step=1)
@@ -113,7 +131,7 @@ with block:
                 n_prompt = gr.Textbox(label="Negative Prompt",
                                       value='longbody, lowres, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality')
         with gr.Column():
-            result_gallery = gr.Gallery(label='Output', show_label=False, elem_id="gallery")
+            result_gallery = gr.Gallery(label='Output', show_label=False, elem_id="gallery", columns=3)
     ips = [input_image, prompt, a_prompt, n_prompt, num_samples, image_resolution, ddim_steps, guess_mode, strength, scale, seed, eta]
     run_button.click(fn=process, inputs=ips, outputs=[result_gallery])
 
