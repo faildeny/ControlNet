@@ -1,9 +1,11 @@
 from share import *
 from datetime import datetime
 import os
-
+import time
+import datetime as dt
 
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import Callback
 from torch.utils.data import DataLoader
 from tutorial_dataset import MyDataset
 from cldm.logger import ImageLogger
@@ -14,8 +16,8 @@ from cldm.model import create_model, load_state_dict
 # 1*2 6:05
 
 model = '2.1'
-# stage = 'SD'
-stage = 'control'
+stage = 'SD'
+# stage = 'control'
 
 if model == '2.1':
     model_definition = './models/cldm_v21.yaml'
@@ -58,13 +60,35 @@ model.sd_locked = sd_locked
 model.control_locked = control_locked
 model.only_mid_control = only_mid_control
 
+start_sleep_hour = 6
+end_sleep_hour = 23
+
+# Sleep callback
+class TimeScheduleSleep(Callback):
+    def __init__(self, start_sleep_hour, end_sleep_hour):
+        self.start_sleep_hour = start_sleep_hour
+        self.end_sleep_hour = end_sleep_hour
+
+    def on_train_batch_start(self, *args, **kwargs):
+        current_time = dt.datetime.now().strftime("%H")
+        current_time = int(current_time)
+        print("Current time is " + str(current_time))
+        if current_time >= start_sleep_hour and current_time <= end_sleep_hour:
+            # Sleep until end of office hours
+            time_to_sleep = end_sleep_hour - current_time
+            print("Going to sleep for " + str(time_to_sleep) + " hours")
+            time.sleep(time_to_sleep * 60 * 60)
+
+
 logger_params = dict(sample = True, plot_denoise_rows= False, plot_diffusion_rows= False)
 
 # Misc
 dataset = MyDataset()
 dataloader = DataLoader(dataset, num_workers=20, batch_size=batch_size, shuffle=True)
 logger = ImageLogger(batch_frequency=logger_freq, log_images_kwargs=logger_params)
-trainer = pl.Trainer(gpus=1, precision=32, callbacks=[logger], default_root_dir=log_dir, accumulate_grad_batches=2)
+time_schedule_sleep = TimeScheduleSleep(start_sleep_hour, end_sleep_hour)
+trainer = pl.Trainer(gpus=1, precision=32, callbacks=[logger], default_root_dir=log_dir, accumulate_grad_batches=1)
+# trainer = pl.Trainer(gpus=1, precision=32, callbacks=[logger, time_schedule_sleep], default_root_dir=log_dir, accumulate_grad_batches=2)
 
 
 # Train!

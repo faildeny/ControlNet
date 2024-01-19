@@ -17,11 +17,13 @@ from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
 
 
-source_dataset_path = "./training/stacked_EDES_resized_128"
+source_dataset_path = "./training/stacked_EDES_fold_0_prev_0_01_resized_512"
+output_size = 120
 
 # model_checkpoint = './lightning_logs/version_21/checkpoints/epoch=0-step=30296.ckpt' # less than 1 epoch
-model_checkpoint = 'lightning_logs/version_23/checkpoints/epoch=3-step=121187.ckpt' # 512
+# model_checkpoint = 'lightning_logs/version_23/checkpoints/epoch=3-step=121187.ckpt' # 512
 # model_checkpoint = 'lightning_logs/version_43/checkpoints/epoch=18-step=71971.ckpt' # 128 
+model_checkpoint = "logs/Jan16_16-59-59_model_SD_2.1_512_lr_1e-05_sd_locked_True_control_locked_False/lightning_logs/version_0/checkpoints/epoch=0-step=88586.ckpt"
 
 # Features for random prompt generation
 sex = ['Male', 'Female']
@@ -171,13 +173,15 @@ def generate_random_prompt_dataset(output_dir, n_samples = 10):
         mask = mask.astype(np.float32) / 255.0
         mask = torch.from_numpy(mask)
 
-        sample = process(mask, prompt, "", "", 1, mask.shape[1])[0]
+        sample = process(mask, prompt, "", "", 1, mask.shape[1], scale=6)[0]
 
         filename = prompt.replace(", ", "_").replace(" ", "_")
         filename = f'{i}_{filename}.png'
         output_path = os.path.join(output_dir, filename)
         sample = cv2.cvtColor(sample, cv2.COLOR_RGB2BGR)
         mask = cv2.cvtColor(mask.numpy() * 255.0, cv2.COLOR_RGB2BGR)
+        sample = cv2.resize(sample, (output_size, output_size))
+        mask = cv2.resize(mask, (output_size, output_size), interpolation=cv2.INTER_NEAREST)
         cv2.imwrite(output_path, sample)
         cv2.imwrite(output_path.replace(".png", "_mask.png"), mask)
     
@@ -186,6 +190,6 @@ def generate_random_prompt_dataset(output_dir, n_samples = 10):
 
 # Select one of the methods for synthetic dataset generation
 
-generate_random_prompt_dataset("synthetic_dataset/random_dataset", 100)
+generate_random_prompt_dataset("synthetic_dataset/random_dataset_40k", 5000)
 # generate_synthetic_copy(source_dataset_path)
 
