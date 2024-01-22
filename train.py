@@ -60,8 +60,8 @@ model.sd_locked = sd_locked
 model.control_locked = control_locked
 model.only_mid_control = only_mid_control
 
-start_sleep_hour = 6
-end_sleep_hour = 23
+start_sleep_hour = 7
+end_sleep_hour = 22
 
 # Sleep callback
 class TimeScheduleSleep(Callback):
@@ -72,8 +72,8 @@ class TimeScheduleSleep(Callback):
     def on_train_batch_start(self, *args, **kwargs):
         current_time = dt.datetime.now().strftime("%H")
         current_time = int(current_time)
-        print("Current time is " + str(current_time))
-        if current_time >= start_sleep_hour and current_time <= end_sleep_hour:
+        if current_time >= start_sleep_hour and current_time < end_sleep_hour:
+            print("Current time is " + str(current_time))
             # Sleep until end of office hours
             time_to_sleep = end_sleep_hour - current_time
             print("Going to sleep for " + str(time_to_sleep) + " hours")
