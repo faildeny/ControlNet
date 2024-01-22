@@ -445,9 +445,12 @@ class ControlLDM(LatentDiffusion):
         else:
             params = []
         if not self.sd_locked:
-            sd_params = list(self.model.diffusion_model.parameters())
-            # sd_params = list(self.model.diffusion_model.output_blocks.parameters())
-            # sd_params += list(self.model.diffusion_model.out.parameters())
+            if self.sd_locked_first_half:
+                sd_params = list(self.model.diffusion_model.output_blocks.parameters())
+                sd_params += list(self.model.diffusion_model.out.parameters())
+            else:
+                sd_params = list(self.model.diffusion_model.parameters())
+            
             params += sd_params
             total_nbytes = 0
             for p in sd_params:

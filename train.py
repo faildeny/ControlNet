@@ -47,6 +47,7 @@ only_mid_control = False
 
 if stage == 'SD':
     sd_locked = False
+    sd_locked_first_half = False
     control_locked = True
     learning_rate = 2e-6
 elif stage == 'control':
@@ -54,7 +55,7 @@ elif stage == 'control':
     control_locked = False
     learning_rate = 1e-5
 
-appendix = "_model_SD_" + model + "_512" + "_lr_" + str(learning_rate) + "_sd_locked_" + str(sd_locked) + "_control_locked_" + str(control_locked)
+appendix = "_model_SD_" + model + "_512" + "_lr_" + str(learning_rate) + "_sd_locked_" + str(sd_locked) + "sd_first_half_" + str(sd_locked_first_half) + "_control_locked_" + str(control_locked)
 current_time = datetime.now().strftime("%b%d_%H-%M-%S")
 log_dir = os.path.join("logs", current_time + appendix)
 os.makedirs(log_dir, exist_ok=True)
@@ -64,6 +65,7 @@ model = create_model(model_definition).cpu()
 model.load_state_dict(load_state_dict(resume_path, location='cpu'))
 model.learning_rate = learning_rate
 model.sd_locked = sd_locked
+model.sd_locked_first_half = sd_locked_first_half
 model.control_locked = control_locked
 model.only_mid_control = only_mid_control
 
