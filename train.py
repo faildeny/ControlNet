@@ -2,7 +2,7 @@ from share import *
 from datetime import datetime
 import os
 import time
-import datetime as dt
+import argparse
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
@@ -10,6 +10,13 @@ from torch.utils.data import DataLoader
 from tutorial_dataset import MyDataset
 from cldm.logger import ImageLogger
 from cldm.model import create_model, load_state_dict
+
+
+# Get gpu id from command line
+parser = argparse.ArgumentParser()
+parser.add_argument('--gpu', type=int, default=0)
+args = parser.parse_args()
+gpus = [args.gpu]
 
 # 24 1:05
 # 8 1:40
@@ -70,7 +77,7 @@ class TimeScheduleSleep(Callback):
         self.end_sleep_hour = end_sleep_hour
 
     def on_train_batch_start(self, *args, **kwargs):
-        current_time = dt.datetime.now().strftime("%H")
+        current_time = datetime.now().strftime("%H")
         current_time = int(current_time)
         if current_time >= start_sleep_hour and current_time < end_sleep_hour:
             print("Current time is " + str(current_time))
@@ -87,7 +94,7 @@ dataset = MyDataset()
 dataloader = DataLoader(dataset, num_workers=20, batch_size=batch_size, shuffle=True)
 logger = ImageLogger(batch_frequency=logger_freq, log_images_kwargs=logger_params)
 time_schedule_sleep = TimeScheduleSleep(start_sleep_hour, end_sleep_hour)
-trainer = pl.Trainer(gpus=1, precision=32, callbacks=[logger], default_root_dir=log_dir, accumulate_grad_batches=1)
+trainer = pl.Trainer(gpus=gpus, precision=32, callbacks=[logger], default_root_dir=log_dir, accumulate_grad_batches=1)
 # trainer = pl.Trainer(gpus=1, precision=32, callbacks=[logger, time_schedule_sleep], default_root_dir=log_dir, accumulate_grad_batches=2)
 
 
