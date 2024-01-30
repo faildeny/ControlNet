@@ -6,19 +6,15 @@ import os
 from torch.utils.data import Dataset
 
 
-# dataset_path = "./training/sa_1ch_debug/"
-# dataset_path = "./training/stacked_EDES_resized_512/"
-dataset_path = "./training/stacked_EDES_fold_0_prev_0_01_resized_512/"
-# dataset_path = "./training/stacked_EDES_resized_128/"
-
 class MyDataset(Dataset):
-    def __init__(self):
+    def __init__(self, dataset_path):
         self.data = []
         self.dataset_path = dataset_path
         with open(dataset_path+'prompt.json', 'rt') as f:
             for line in f:
                 self.data.append(json.loads(line))
         print("Loaded ", len(self.data), " samples.")
+        self.sample_weights = self.calculate_sample_weights()
 
     def __len__(self):
         return len(self.data)
@@ -29,8 +25,8 @@ class MyDataset(Dataset):
         source_filename = item['source']
         target_filename = item['target']
         prompt = item['prompt']
-        source = cv2.imread(dataset_path + source_filename)
-        target = cv2.imread(dataset_path + target_filename)
+        source = cv2.imread(self.dataset_path + source_filename)
+        target = cv2.imread(self.dataset_path + target_filename)
 
         # Do not forget that OpenCV read images in BGR order.
         source = cv2.cvtColor(source, cv2.COLOR_BGR2RGB)
@@ -50,4 +46,20 @@ class MyDataset(Dataset):
     
     def get_samples_list(self):
         return self.data
+    
+    def calculate_sample_weights(self):
+        class_sizes = {}
+        sample_weights = []
+        for item in self.data:
+            if item['prompt'] not in class_sizes:
+                class_sizes[item['prompt']] = 0
+            class_sizes[item['prompt']] += 1
 
+        # print("Class sizes: ", class_sizes)
+            
+        # Add weights for each sample.
+        for item in self.data:
+            item['sample_weight'] = 1.0 / class_sizes[item['prompt']]
+            sample_weights.append(item['sample_weight'])
+        
+        return sample_weights
