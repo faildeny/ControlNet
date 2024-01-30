@@ -79,8 +79,8 @@ model.sd_locked_first_half = sd_locked_first_half
 model.control_locked = control_locked
 model.only_mid_control = only_mid_control
 
-start_sleep_hour = 7
-end_sleep_hour = 22
+start_sleep_hour = 8
+end_sleep_hour = 21
 
 # Sleep callback
 class TimeScheduleSleep(Callback):
