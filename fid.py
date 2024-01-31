@@ -2,6 +2,8 @@ import argparse
 import os
 import random
 import shutil
+import subprocess
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -29,7 +31,8 @@ def parse_args() -> argparse.Namespace:
 
 def create_temporary_directory(directory, n_samples):
     # get dir 
-    temp_dir = os.path.join("tmp", directory)
+    # generate random hash  
+    temp_dir = os.path.join("tmp", directory + str(random.getrandbits(128)))
     os.makedirs(temp_dir, exist_ok=False)
     files_list = os.listdir(directory)
     # exclude files with "mask" in name
@@ -52,19 +55,15 @@ if __name__ == "__main__":
     directory_1 = args.dataset_path_1
     directory_2 = args.dataset_path_2
     lower_bound = args.lower_bound
-    n_samples = 1000
+    n_samples = 5000
 
-    temp_dir1 = get_temporary_sublist(directory_1, n_samples) 
+    temp_dir1 = create_temporary_directory(directory_1, n_samples)
+    temp_dir2 = create_temporary_directory(directory_2, n_samples)
 
-    fid = calculate_fid(
-        directory_1=directory_1,
-        directory_2=directory_2,
-        model_name=model_name,
-        lower_bound=lower_bound,
-        normalize_images=normalize_images,
-    )
+    # execute command to calculate FID
+    command = f"python -m pytorch_fid {temp_dir1} {temp_dir2}"
+    training_process = subprocess.run(command, shell=True)
 
-    if lower_bound:
-        print("Lower bound FID {}: {}".format(model_name, fid))
-    else:
-        print("FID {}: {}".format(model_name, fid))
+    # remove temporary directories
+    shutil.rmtree(temp_dir1)
+    shutil.rmtree(temp_dir2)
