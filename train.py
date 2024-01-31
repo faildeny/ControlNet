@@ -112,7 +112,7 @@ else:
 logger = ImageLogger(batch_frequency=logger_freq, log_images_kwargs=logger_params)
 time_schedule_sleep = TimeScheduleSleep(start_sleep_hour, end_sleep_hour)
 trainer = pl.Trainer(gpus=1, precision=32, callbacks=[logger], default_root_dir=log_dir, accumulate_grad_batches=2)
-# trainer = pl.Trainer(gpus=gpus, precision=32, callbacks=[logger, time_schedule_sleep], default_root_dir=log_dir, accumulate_grad_batches=2)
+# trainer = pl.Trainer(gpus=gpus, precision=32, callbacks=[logger, time_schedule_sleep], default_root_dir=log_dir, accumulate_grad_batches=1)
 
 
 # Train!

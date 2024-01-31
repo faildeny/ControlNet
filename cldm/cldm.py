@@ -359,12 +359,17 @@ class ControlLDM(LatentDiffusion):
         c_cat, c = c["c_concat"][0][:N], c["c_crossattn"][0][:N]
         N = min(z.shape[0], N)
         n_row = min(z.shape[0], n_row)
+        log["input"] = batch[self.first_stage_key][:N].permute(0, 3, 1, 2)
         log["reconstruction"] = self.decode_first_stage(z)
         log["control"] = c_cat * 2.0 - 1.0
         # text_panel_size = (128, 128)
         text_panel_size = (512, 512)
-        log["conditioning"] = log_txt_as_img(text_panel_size, batch[self.cond_stage_key], size=16)
-        log["filename"] = log_txt_as_img(text_panel_size, batch["filename"], size=16)
+        for i in range(N):
+            file_string = batch["filename"][i].split("/")[-1].split("_t")[0] + "\n" + batch["filename"][i].split("/")[-1].split("_t")[1].split(".")[0]
+            batch[self.cond_stage_key][i] = batch[self.cond_stage_key][i].replace(", ", ",\n") + "\n" + file_string
+
+        log["conditioning"] = log_txt_as_img(text_panel_size, batch[self.cond_stage_key], size=55)
+        # log["filename"] = log_txt_as_img(text_panel_size, batch["filename"], size=16)
 
         if plot_diffusion_rows:
             # get diffusion row
