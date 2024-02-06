@@ -99,7 +99,7 @@ class TimeScheduleSleep(Callback):
             time.sleep(time_to_sleep * 60 * 60)
 
 
-logger_params = dict(sample = True, plot_denoise_rows= False, plot_diffusion_rows= False)
+logger_params = dict(sample = True, plot_denoise_rows= False, plot_diffusion_rows= False, unconditional_guidance_scale=6.0)
 
 # Misc
 dataset = MyDataset(dataset_path)
