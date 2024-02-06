@@ -2,6 +2,7 @@ from share import *
 import config
 import os
 from pathlib import Path
+from time import time
 
 from tqdm import tqdm
 import cv2
@@ -13,17 +14,20 @@ from torch.utils.data import DataLoader
 from tutorial_dataset import MyDataset
 
 from pytorch_lightning import seed_everything
+from torchvision.utils import make_grid
 from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
+from ldm.util import log_txt_as_img
 
 
-source_dataset_path = "./training/stacked_EDES_fold_0_prev_0_01_resized_512"
+source_dataset_path = "./training/stacked_EDES_fold_0_prev_0_01_resized_512/"
 output_size = 120
 
 # model_checkpoint = './lightning_logs/version_21/checkpoints/epoch=0-step=30296.ckpt' # less than 1 epoch
 # model_checkpoint = 'lightning_logs/version_23/checkpoints/epoch=3-step=121187.ckpt' # 512
 # model_checkpoint = 'lightning_logs/version_43/checkpoints/epoch=18-step=71971.ckpt' # 128 
-model_checkpoint = "logs/Jan16_16-59-59_model_SD_2.1_512_lr_1e-05_sd_locked_True_control_locked_False/lightning_logs/version_0/checkpoints/epoch=0-step=88586.ckpt"
+# model_checkpoint = "logs/Jan16_16-59-59_model_SD_2.1_512_lr_1e-05_sd_locked_True_control_locked_False_40k/lightning_logs/version_0/checkpoints/epoch=0-step=88586.ckpt"
+model_checkpoint = "logs/Jan26_16-28-11_model_SD_1.5_512_lr_2e-06_sd_locked_Falsesd_first_half_True_control_locked_True/lightning_logs/version_0/checkpoints/epoch=2-step=265760.ckpt"
 
 # Features for random prompt generation
 sex = ['Male', 'Female']
@@ -34,12 +38,13 @@ diagnosis = ['healthy', 'heart failure']
 features = [sex, age, bmi, diagnosis]
 
 # Initialize model
-model = create_model('./models/cldm_v21.yaml').cuda()
+# model = create_model('./models/cldm_v21.yaml').cuda()
+model = create_model('./models/cldm_v15.yaml').cuda()
 model.load_state_dict(load_state_dict(model_checkpoint, location='cpu'))
 model = model.cuda()
 ddim_sampler = DDIMSampler(model)
 
-dataset = MyDataset()
+dataset = MyDataset(source_dataset_path)
 
 # Load paths to masks with diagnosed heart failure
 def get_masks_list(dataset, feature_to_find):
@@ -153,6 +158,80 @@ def generate_synthetic_copy(dataset_path, output_path=None, per_sample_multiplie
             print(output_path)
             cv2.imwrite(output_path, sample)
 
+def generate_images_with_parameter_array(output_dir, steps_min, steps_max, cfg_min, cfg_max):
+    """
+    Generate images with different parameters
+    """
+    prompt = generate_prompt(features)
+    samples_list = dataset.get_samples_list()
+    masks_list = []
+    sample = random.choice(samples_list)
+    prompt = sample['prompt']
+    image = os.path.join(dataset.dataset_path, sample['target'])
+    mask = os.path.join(dataset.dataset_path, sample['source'])
+
+    mask = cv2.imread(mask)
+    mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
+    mask = mask.astype(np.float32) / 255.0
+    mask = torch.from_numpy(mask)
+
+    image = cv2.imread(image)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image = image.astype(np.float32)
+    image = torch.from_numpy(image)
+    image = image.transpose(0, 2).transpose(1, 2)
+
+    seed = 1234
+
+    os.makedirs(output_dir, exist_ok=True)
+    # steps_list = list(range(steps_min, steps_max+1, 2))
+    steps_list = [1, 2, 4, 5, 7, 11, 20, 50, 200]
+    
+    # cfg_list = list(range(cfg_min, cfg_max+1, 2))
+    # cfg_list.insert(1, 1)
+    # cfg_list.append(12)
+    # cfg_list.append(20)
+    cfg_list = [0, 1, 2, 4, 6, 8, 12, 20]
+    row_length = len(cfg_list) + 1
+    text_panel_size = (512, 512)
+
+    steps_array = []
+    columns = []
+    # column_name = log_txt_as_img(text_panel_size, [f'CFG\nvs\nDDIM steps'], size=55)[0]
+    # columns.append(column_name)
+    columns.append(image)
+    for cfg in cfg_list:
+        column_name = log_txt_as_img(text_panel_size, [f'CFG: {cfg}'], size=55)[0]
+        columns.append(column_name)
+    steps_array.append(columns)
+    for steps in steps_list:
+        cfg_array = []
+        cfg_array.append(log_txt_as_img(text_panel_size, [f'DDIM Steps: {steps}'], size=55)[0])
+        for cfg in cfg_list:
+            samples = process(mask, prompt, "", "", 1, mask.shape[1], ddim_steps=steps, guess_mode=False, strength=1, scale=cfg, seed=seed, eta=0)
+            sample = samples[0]
+            sample = torch.tensor(sample.transpose(2, 0, 1))
+            cfg_array.append(sample)
+        steps_array.append(cfg_array)
+
+    grid_rows = []
+    for row in steps_array:
+        grid = make_grid(row, nrow=row_length)
+        grid_rows.append(grid)
+
+
+    grid = make_grid(grid_rows, nrow=1)
+    # grid = (grid + 1.0) / 2.0
+    grid = grid.transpose(0, 1).transpose(1, 2).squeeze(-1)
+    grid = grid.numpy()
+    grid = (grid).astype(np.uint8)
+
+    filename = f'cfg_steps_array.png'
+    output_path = os.path.join(output_dir, filename)
+    cv2.imwrite(output_path, grid)
+    print(f"Saved {output_path}")
+    
+
 
 def generate_random_prompt_dataset(output_dir, n_samples = 10):
     """
@@ -190,6 +269,10 @@ def generate_random_prompt_dataset(output_dir, n_samples = 10):
 
 # Select one of the methods for synthetic dataset generation
 
+start_time = time()
 generate_random_prompt_dataset("synthetic_dataset/random_dataset_40k", 5000)
+# generate_images_with_parameter_array("grid_search/parameter_array", 1, 15, 0, 8)
 # generate_synthetic_copy(source_dataset_path)
 
+#Print execution time in hours
+print("Execution time: ", (time() - start_time) / 3600)
