@@ -414,7 +414,27 @@ class ControlLDM(LatentDiffusion):
                                              )
             x_samples_cfg = self.decode_first_stage(samples_cfg)
             log[f"samples_cfg_scale_{unconditional_guidance_scale:.2f}"] = x_samples_cfg
+        
 
+        #convert to list of tensors
+        for k in log:
+            log[k] = [log[k][i].cpu() for i in range(N)]
+            
+        log["input"].insert(0, log_txt_as_img(text_panel_size, ["Real image"], size=55)[0])
+        log["reconstruction"].insert(0, log_txt_as_img(text_panel_size, ["Real\nreconstructed"], size=55)[0])
+        log["control"].insert(0, log_txt_as_img(text_panel_size, ["ControlNet\nMask"], size=55)[0])
+        log["conditioning"].insert(0, log_txt_as_img(text_panel_size, ["Prompt"], size=55)[0])
+        if sample:
+            log["samples"].insert(0, log_txt_as_img(text_panel_size, ["Output image\n CFG: 0"], size=55)[0])
+            if plot_denoise_rows:
+                log["denoise_row"].insert(0, log_txt_as_img(text_panel_size, ["Denoise\nprogression"], size=55)[0])
+        if unconditional_guidance_scale > 1.0:
+            log[f"samples_cfg_scale_{unconditional_guidance_scale:.2f}"].insert(0, log_txt_as_img(text_panel_size, [f"Output image\n CFG: {unconditional_guidance_scale:.2f}"], size=55)[0])
+
+        # Convert back to tensor
+        for k in log:
+            log[k] = torch.stack(log[k])
+            
         return log
 
     @torch.no_grad()
