@@ -34,6 +34,7 @@ sex = ['Male', 'Female']
 age = ['age in 50s', 'age in 60s', 'age in 70s', 'age in 80s', 'age in 90s']
 bmi = ['normal BMI', 'overweight BMI', 'obese BMI']
 diagnosis = ['healthy', 'heart failure']
+# diagnosis = ['healthy', 'atrial fibrillation', 'ischemic heart disease', 'myocardial infarction', 'heart failure']
 
 features = [sex, age, bmi, diagnosis]
 
@@ -47,7 +48,7 @@ ddim_sampler = DDIMSampler(model)
 dataset = MyDataset(source_dataset_path)
 
 # Load paths to masks with diagnosed heart failure
-def get_masks_list(dataset, feature_to_find):
+def get_masks_list(dataset, feature_to_find, exclude=False):
     """
     Get list of masks with given feature in the prompt
     """
@@ -56,17 +57,17 @@ def get_masks_list(dataset, feature_to_find):
     for sample in samples_list:
         prompt = sample['prompt']
         mask_filename = os.path.join(dataset.dataset_path, sample['source'])
-        if feature_to_find in prompt:
+        if feature_to_find in prompt and not exclude:
+            masks_list.append(mask_filename)
+        if feature_to_find not in prompt and exclude:
             masks_list.append(mask_filename)
 
     print("Found {} masks with feature {}".format(len(masks_list), feature_to_find))
 
     return masks_list
 
-
 diagnosed_masks = get_masks_list(dataset, feature_to_find="heart failure")
-healthy_masks = get_masks_list(dataset, feature_to_find="healthy")
-
+healthy_masks = get_masks_list(dataset, feature_to_find="heart failure", exclude=True)
 
 def generate_prompt(features):
     """
@@ -81,8 +82,7 @@ def generate_prompt(features):
 
     return prompt
 
-
-def process(input_image, prompt, a_prompt, n_prompt, num_samples, image_resolution, ddim_steps=20, guess_mode=False, strength=1, scale=9, seed=-1, eta=0):
+def process(input_image, prompt, a_prompt, n_prompt, num_samples, image_resolution, ddim_steps=20, guess_mode=False, strength=1, scale=4, seed=-1, eta=0):
     """
     Generate synthetic image from input mask and prompt
     """
@@ -124,7 +124,6 @@ def process(input_image, prompt, a_prompt, n_prompt, num_samples, image_resoluti
         x_samples = (einops.rearrange(x_samples, 'b c h w -> b h w c') * 127.5 + 127.5).cpu().numpy().clip(0, 255).astype(np.uint8)
         
     return x_samples
-
 
 def generate_synthetic_copy(dataset_path, output_path=None, per_sample_multiplier=1):
     """
@@ -231,9 +230,7 @@ def generate_images_with_parameter_array(output_dir, steps_min, steps_max, cfg_m
     cv2.imwrite(output_path, grid)
     print(f"Saved {output_path}")
     
-
-
-def generate_random_prompt_dataset(output_dir, n_samples = 10):
+def generate_random_prompt_dataset(output_dir, diagnosis_feature, n_samples = 10):
     """
     Generate dataset with random prompts and real masks from patients diagnosed heart failure
     """
@@ -242,7 +239,7 @@ def generate_random_prompt_dataset(output_dir, n_samples = 10):
 
     for i in tqdm(range(n_samples)):
         prompt = generate_prompt(features)
-        if "healthy" in prompt:
+        if diagnosis_feature not in prompt:
             mask = random.choice(healthy_masks)
         else:
             mask = random.choice(diagnosed_masks)
@@ -252,7 +249,7 @@ def generate_random_prompt_dataset(output_dir, n_samples = 10):
         mask = mask.astype(np.float32) / 255.0
         mask = torch.from_numpy(mask)
 
-        sample = process(mask, prompt, "", "", 1, mask.shape[1], scale=6)[0]
+        sample = process(mask, prompt, "", "", 1, mask.shape[1], scale=4)[0]
 
         filename = prompt.replace(", ", "_").replace(" ", "_")
         filename = f'{i}_{filename}.png'
@@ -270,7 +267,7 @@ def generate_random_prompt_dataset(output_dir, n_samples = 10):
 # Select one of the methods for synthetic dataset generation
 
 start_time = time()
-generate_random_prompt_dataset("synthetic_dataset/random_dataset_40k", 5000)
+generate_random_prompt_dataset("synthetic_dataset/random_dataset_40k_1_5_cfg_4", 'heart failure', 5000)
 # generate_images_with_parameter_array("grid_search/parameter_array", 1, 15, 0, 8)
 # generate_synthetic_copy(source_dataset_path)
 
