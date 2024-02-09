@@ -6,6 +6,7 @@ import argparse
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
+from pytorch_lightning.profiler import PyTorchProfiler
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from tutorial_dataset import MyDataset
 from cldm.logger import ImageLogger
@@ -22,11 +23,11 @@ gpus = [args.gpu]
 # 8 1:40
 # 1*2 6:05
 
-model = '1.5'
-# model = '2.1'
-stage = 'SD'
-# stage = 'control'
-size = 512
+# model = '1.5'
+model = '2.1'
+# stage = 'SD'
+stage = 'control'
+size = 128
 balanced_sampling = True
 
 if model == '2.1':
@@ -35,6 +36,7 @@ if model == '2.1':
     # resume_path = 'lightning_logs/version_21/checkpoints/epoch=0-step=30296.ckpt'
     # resume_path = 'lightning_logs/version_23/checkpoints/epoch=3-step=121187.ckpt'
     # resume_path = 'lightning_logs/version_43/checkpoints/epoch=18-step=71971.ckpt' # 128 
+    resume_path = "logs/Jan16_16-59-59_model_SD_2.1_512_lr_1e-05_sd_locked_True_control_locked_False_40k/lightning_logs/version_0/checkpoints/epoch=0-step=88586.ckpt"
 
 elif model == '1.5':
     model_definition = './models/cldm_v15.yaml'
@@ -62,10 +64,11 @@ if stage == 'SD':
     learning_rate = 2e-6
 elif stage == 'control':
     sd_locked = True
+    sd_locked_first_half = True
     control_locked = False
     learning_rate = 1e-5
 
-appendix = "_model_SD_" + model + "_" + str(size) + "_lr_" + str(learning_rate) + "_sd_locked_" + str(sd_locked) + "sd_first_half_" + str(sd_locked_first_half) + "_control_locked_" + str(control_locked)
+appendix = "_model_SD_" + model + "_" + str(size) + "_lr_" + str(learning_rate) + "_sd_lck_" + str(int(sd_locked)) + "_sd_f_hlf_" + str(int(sd_locked_first_half)) + "_c_lck_" + str(int(control_locked)) + "continue"
 current_time = datetime.now().strftime("%b%d_%H-%M-%S")
 log_dir = os.path.join("logs", current_time + appendix)
 os.makedirs(log_dir, exist_ok=True)

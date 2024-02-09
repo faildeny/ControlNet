@@ -235,7 +235,7 @@ def generate_random_prompt_dataset(output_dir, diagnosis_feature, n_samples = 10
     Generate dataset with random prompts and real masks from patients diagnosed heart failure
     """
 
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=False)
 
     for i in tqdm(range(n_samples)):
         prompt = generate_prompt(features)
@@ -267,7 +267,7 @@ def generate_random_prompt_dataset(output_dir, diagnosis_feature, n_samples = 10
 # Select one of the methods for synthetic dataset generation
 
 start_time = time()
-generate_random_prompt_dataset("synthetic_dataset/random_dataset_40k_1_5_cfg_4", 'heart failure', 5000)
+generate_random_prompt_dataset("synthetic_dataset/random_dataset_40k_1_5_cfg_only_healthy", 'heart failure', 5000)
 # generate_images_with_parameter_array("grid_search/parameter_array", 1, 15, 0, 8)
 # generate_synthetic_copy(source_dataset_path)
 

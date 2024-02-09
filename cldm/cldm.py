@@ -362,13 +362,15 @@ class ControlLDM(LatentDiffusion):
         log["input"] = batch[self.first_stage_key][:N].permute(0, 3, 1, 2)
         log["reconstruction"] = self.decode_first_stage(z)
         log["control"] = c_cat * 2.0 - 1.0
-        # text_panel_size = (128, 128)
-        text_panel_size = (512, 512)
+        # get image size
+        H, W = log["input"].shape[-2:]
+        font_size = H // 10
+        text_panel_size = (H, W)
         for i in range(N):
             file_string = batch["filename"][i].split("/")[-1].split("_t")[0] + "\n" + batch["filename"][i].split("/")[-1].split("_t")[1].split(".")[0]
             batch[self.cond_stage_key][i] = batch[self.cond_stage_key][i].replace(", ", ",\n") + "\n" + file_string
 
-        log["conditioning"] = log_txt_as_img(text_panel_size, batch[self.cond_stage_key], size=55)
+        log["conditioning"] = log_txt_as_img(text_panel_size, batch[self.cond_stage_key], size=font_size)
         # log["filename"] = log_txt_as_img(text_panel_size, batch["filename"], size=16)
 
         if plot_diffusion_rows:
@@ -420,16 +422,16 @@ class ControlLDM(LatentDiffusion):
         for k in log:
             log[k] = [log[k][i].cpu() for i in range(N)]
             
-        log["input"].insert(0, log_txt_as_img(text_panel_size, ["Real image"], size=55)[0])
-        log["reconstruction"].insert(0, log_txt_as_img(text_panel_size, ["Real\nreconstructed"], size=55)[0])
-        log["control"].insert(0, log_txt_as_img(text_panel_size, ["ControlNet\nMask"], size=55)[0])
-        log["conditioning"].insert(0, log_txt_as_img(text_panel_size, ["Prompt"], size=55)[0])
+        log["input"].insert(0, log_txt_as_img(text_panel_size, ["Real image"], size=font_size)[0])
+        log["reconstruction"].insert(0, log_txt_as_img(text_panel_size, ["Real\nreconstructed"], size=font_size)[0])
+        log["control"].insert(0, log_txt_as_img(text_panel_size, ["ControlNet\nMask"], size=font_size)[0])
+        log["conditioning"].insert(0, log_txt_as_img(text_panel_size, ["Prompt"], size=font_size)[0])
         if sample:
-            log["samples"].insert(0, log_txt_as_img(text_panel_size, ["Output image\n CFG: 0"], size=55)[0])
+            log["samples"].insert(0, log_txt_as_img(text_panel_size, ["Output image\n CFG: 0"], size=font_size)[0])
             if plot_denoise_rows:
-                log["denoise_row"].insert(0, log_txt_as_img(text_panel_size, ["Denoise\nprogression"], size=55)[0])
+                log["denoise_row"].insert(0, log_txt_as_img(text_panel_size, ["Denoise\nprogression"], size=font_size)[0])
         if unconditional_guidance_scale > 1.0:
-            log[f"samples_cfg_scale_{unconditional_guidance_scale:.2f}"].insert(0, log_txt_as_img(text_panel_size, [f"Output image\n CFG: {unconditional_guidance_scale:.2f}"], size=55)[0])
+            log[f"samples_cfg_scale_{unconditional_guidance_scale:.2f}"].insert(0, log_txt_as_img(text_panel_size, [f"Output image\n CFG: {unconditional_guidance_scale:.2f}"], size=font_size)[0])
 
         # Convert back to tensor
         for k in log:
