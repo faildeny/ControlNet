@@ -93,13 +93,16 @@ class TimeScheduleSleep(Callback):
 
     def on_train_batch_start(self, *args, **kwargs):
         current_time = datetime.now().strftime("%H")
+        # get day of the week
+        day = datetime.now().weekday()
         current_time = int(current_time)
-        if current_time >= start_sleep_hour and current_time < end_sleep_hour:
-            print("Current time is " + str(current_time))
-            # Sleep until end of office hours
-            time_to_sleep = end_sleep_hour - current_time
-            print("Going to sleep for " + str(time_to_sleep) + " hours")
-            time.sleep(time_to_sleep * 60 * 60)
+        if day < 5:
+            if current_time >= start_sleep_hour and current_time < end_sleep_hour:
+                print("Day and hour is: " + str(day) + " " + str(current_time))
+                # Sleep until end of office hours
+                time_to_sleep = end_sleep_hour - current_time
+                print("Going to sleep for " + str(time_to_sleep) + " hours")
+                time.sleep(time_to_sleep * 60 * 60)
 
 
 logger_params = dict(sample = True, plot_denoise_rows= False, plot_diffusion_rows= False, unconditional_guidance_scale=6.0)
