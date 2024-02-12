@@ -20,7 +20,6 @@ from cldm.ddim_hacked import DDIMSampler
 from ldm.util import log_txt_as_img
 
 
-source_dataset_path = "./training/stacked_EDES_fold_0_prev_0_01_resized_512/"
 output_size = 120
 
 # model_checkpoint = './lightning_logs/version_21/checkpoints/epoch=0-step=30296.ckpt' # less than 1 epoch
@@ -29,6 +28,13 @@ output_size = 120
 # model_checkpoint = "logs/Jan16_16-59-59_model_SD_2.1_512_lr_1e-05_sd_locked_True_control_locked_False_40k/lightning_logs/version_0/checkpoints/epoch=0-step=88586.ckpt"
 model_checkpoint = "logs/Jan26_16-28-11_model_SD_1.5_512_lr_2e-06_sd_locked_Falsesd_first_half_True_control_locked_True/lightning_logs/version_0/checkpoints/epoch=2-step=265760.ckpt"
 
+if '_512_' in model_checkpoint:
+    source_dataset_path = "./training/stacked_EDES_fold_0_prev_0_01_resized_512/"
+elif '_128_' in model_checkpoint:
+    source_dataset_path = "./training/stacked_EDES_fold_0_prev_0_01_resized_128/"
+else:
+    raise ValueError("Unrecognized image resoultion")
+    
 # Features for random prompt generation
 sex = ['Male', 'Female']
 age = ['age in 50s', 'age in 60s', 'age in 70s', 'age in 80s', 'age in 90s']
