@@ -3,6 +3,7 @@ import config
 import os
 from pathlib import Path
 from time import time
+from datetime import datetime
 
 from tqdm import tqdm
 import cv2
@@ -19,6 +20,10 @@ from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
 from ldm.util import log_txt_as_img
 
+
+time_schedule = False
+start_sleep_hour = 8
+end_sleep_hour = 21
 
 output_size = 120
 
@@ -52,6 +57,7 @@ model = model.cuda()
 ddim_sampler = DDIMSampler(model)
 
 dataset = MyDataset(source_dataset_path)
+
 
 # Load paths to masks with diagnosed heart failure
 def get_masks_list(dataset, feature_to_find, exclude=False):
@@ -92,6 +98,18 @@ def process(input_image, prompt, a_prompt, n_prompt, num_samples, image_resoluti
     """
     Generate synthetic image from input mask and prompt
     """
+    if time_schedule:
+        current_time = datetime.now().strftime("%H")
+        # get day of the week
+        day = datetime.now().weekday()
+        current_time = int(current_time)
+        if day < 5:
+            if current_time >= start_sleep_hour and current_time < end_sleep_hour:
+                print("Day and hour is: " + str(day) + " " + str(current_time))
+                # Sleep until end of office hours
+                time_to_sleep = end_sleep_hour - current_time
+                print("Going to sleep for " + str(time_to_sleep) + " hours")
+                time.sleep(time_to_sleep * 60 * 60)
 
     with torch.no_grad():
         
