@@ -2,8 +2,9 @@ from share import *
 import config
 import os
 from pathlib import Path
-from time import time
+import time
 from datetime import datetime
+from tqdm import tqdm
 
 from tqdm import tqdm
 import cv2
@@ -20,10 +21,14 @@ from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
 from ldm.util import log_txt_as_img
 
+random.seed(10)
 
 time_schedule = False
 start_sleep_hour = 8
 end_sleep_hour = 21
+
+# Set which gpu to use
+# os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 output_size = 120
 
@@ -32,6 +37,8 @@ output_size = 120
 # model_checkpoint = 'lightning_logs/version_43/checkpoints/epoch=18-step=71971.ckpt' # 128 
 # model_checkpoint = "logs/Jan16_16-59-59_model_SD_2.1_512_lr_1e-05_sd_locked_True_control_locked_False_40k/lightning_logs/version_0/checkpoints/epoch=0-step=88586.ckpt"
 model_checkpoint = "logs/Jan26_16-28-11_model_SD_1.5_512_lr_2e-06_sd_locked_Falsesd_first_half_True_control_locked_True/lightning_logs/version_0/checkpoints/epoch=2-step=265760.ckpt"
+model_checkpoint = "models/_128_epoch=3-step=59059.ckpt"
+# model_checkpoint = "logs/Feb08_17-48-07_model_SD_2.1_512_lr_1e-05_sd_lck_1_sd_f_hlf_1_c_lck_0continue/lightning_logs/version_0/checkpoints/epoch=2-step=265760.ckpt"
 
 if '_512_' in model_checkpoint:
     source_dataset_path = "./training/stacked_EDES_fold_0_prev_0_01_resized_512/"
@@ -44,18 +51,20 @@ else:
 sex = ['Male', 'Female']
 age = ['age in 50s', 'age in 60s', 'age in 70s', 'age in 80s', 'age in 90s']
 bmi = ['normal BMI', 'overweight BMI', 'obese BMI']
+# diagnosis = ['heart failure']
 diagnosis = ['healthy', 'heart failure']
 # diagnosis = ['healthy', 'atrial fibrillation', 'ischemic heart disease', 'myocardial infarction', 'heart failure']
 
 features = [sex, age, bmi, diagnosis]
 
 # Initialize model
-# model = create_model('./models/cldm_v21.yaml').cuda()
-model = create_model('./models/cldm_v15.yaml').cuda()
+model = create_model('./models/cldm_v21.yaml').cuda()
+# model = create_model('./models/cldm_v15.yaml').cuda()
 model.load_state_dict(load_state_dict(model_checkpoint, location='cpu'))
 model = model.cuda()
 ddim_sampler = DDIMSampler(model)
 
+# model = None
 dataset = MyDataset(source_dataset_path)
 
 
@@ -254,29 +263,48 @@ def generate_images_with_parameter_array(output_dir, steps_min, steps_max, cfg_m
     cv2.imwrite(output_path, grid)
     print(f"Saved {output_path}")
     
-def generate_random_prompt_dataset(output_dir, diagnosis_feature, n_samples = 10):
+def generate_random_prompt_dataset(output_dir, diagnosis_feature, n_samples = 10, use_negative_prompts=False):
     """
     Generate dataset with random prompts and real masks from patients diagnosed heart failure
     """
 
-    os.makedirs(output_dir, exist_ok=False)
+    # Generate all random inputs before, as random sampling over long time intervals
+    # skews the distribution significantly
 
-    for i in tqdm(range(n_samples)):
+    random_inputs = []
+    for i in range(n_samples):
         prompt = generate_prompt(features)
         if diagnosis_feature not in prompt:
             mask = random.choice(healthy_masks)
         else:
             mask = random.choice(diagnosed_masks)
 
+        random_inputs.append((prompt, mask))
+
+    os.makedirs(output_dir, exist_ok=False)
+
+    for i, random_input in tqdm(enumerate(random_inputs)):
+        prompt, mask = random_input
+        if use_negative_prompts:
+            if diagnosis_feature in prompt:
+                negative_prompt = "healthy"
+            else:
+                negative_prompt = diagnosis_feature
+        else:
+            negative_prompt = ""
+
+        # Extract id from mask filename
+        mask_id = mask.split("/")[-1].split("_")[0]
+
         mask = cv2.imread(mask)
         mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
         mask = mask.astype(np.float32) / 255.0
         mask = torch.from_numpy(mask)
 
-        sample = process(mask, prompt, "", "", 1, mask.shape[1], scale=4)[0]
+        sample = process(mask, prompt, "", negative_prompt, 1, mask.shape[1], scale=9)[0]
 
         filename = prompt.replace(", ", "_").replace(" ", "_")
-        filename = f'{i}_{filename}.png'
+        filename = f'{i}_{filename}_{mask_id}.png'
         output_path = os.path.join(output_dir, filename)
         sample = cv2.cvtColor(sample, cv2.COLOR_RGB2BGR)
         mask = cv2.cvtColor(mask.numpy() * 255.0, cv2.COLOR_RGB2BGR)
@@ -290,10 +318,12 @@ def generate_random_prompt_dataset(output_dir, diagnosis_feature, n_samples = 10
 
 # Select one of the methods for synthetic dataset generation
 
-start_time = time()
-generate_random_prompt_dataset("synthetic_dataset/random_dataset_40k_1_5_cfg_only_healthy", 'heart failure', 5000)
+start_time = time.time()
+# generate_random_prompt_dataset("synthetic_dataset/random_dataset_40k_2_1_128_4_epoch2, 'heart failure', 5000, use_negative_prompts=False)
+# generate_random_prompt_dataset("synthetic_dataset/random_dataset_40k_2_1_128_4_epoch_seed", 'heart failure', 5000, use_negative_prompts=False)
+generate_random_prompt_dataset("synthetic_dataset/random_dataset_40k_2_1_128_4_epoch_seed_pre_both", 'heart failure', 5000, use_negative_prompts=False)
 # generate_images_with_parameter_array("grid_search/parameter_array", 1, 15, 0, 8)
 # generate_synthetic_copy(source_dataset_path)
 
 #Print execution time in hours
-print("Execution time: ", (time() - start_time) / 3600)
+print("Execution time: ", (time.time() - start_time) / 3600)
