@@ -54,12 +54,25 @@ class MyDataset(Dataset):
             if item['prompt'] not in class_sizes:
                 class_sizes[item['prompt']] = 0
             class_sizes[item['prompt']] += 1
+        
+        max_weight = 1 / (len(self.data)/100) # 1% of the total number of samples
 
-        # print("Class sizes: ", class_sizes)
-            
+        class_sizes = dict(sorted(class_sizes.items(), key=lambda item: item[1], reverse=True))
+        # for prompt, count in class_sizes.items():
+            # print(prompt, count)
+        
+        # print number of classes
+        # print("Number of classes: ", len(class_sizes))
+        
         # Add weights for each sample.
         for item in self.data:
-            item['sample_weight'] = 1.0 / class_sizes[item['prompt']]
-            sample_weights.append(item['sample_weight'])
-        
+            sample_weight = 1.0 / class_sizes[item['prompt']]
+            if sample_weight > max_weight:
+                sample_weight = max_weight
+                # print("Sample weight is too high, setting to max: ", sample_weight, " for prompt: ", item['prompt'])
+            # else:
+                # print("Sample weight: ", sample_weight, " for prompt: ", item['prompt'])
+            # item['sample_weight'] = sample_weight
+            sample_weights.append(sample_weight)
+
         return sample_weights
