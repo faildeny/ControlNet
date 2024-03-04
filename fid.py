@@ -3,6 +3,7 @@ import os
 import random
 import shutil
 import subprocess
+import numpy as np
 
 
 def parse_args() -> argparse.Namespace:
@@ -33,6 +34,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Keyword to search for in the second dataset",
     )
+    parser.add_argument(
+        "--array_eval",
+        action="store_true",
+        help="If set, the multiple comparisons between sensitive feature subgroups are performed",
+    )
     
     args = parser.parse_args()
 
@@ -56,6 +62,22 @@ def create_temporary_directory(directory, n_samples, lower_bound=False, only_uni
         files_list = files_list * (2*n_samples // len(files_list) + 1)
         print("Number of files after adding duplicates:", len(files_list))
 
+    if lower_bound:
+        # Extract ids from file names
+        ids = [file.split("_")[0] for file in files_list]
+        ids = list(set(ids))
+        set1 = set(ids[:len(ids)//2])
+        set2 = set(ids[len(ids)//2:])
+        
+        files_list1 = [file for file in files_list if file.split("_")[0] in set1]
+        files_list2 = [file for file in files_list if file.split("_")[0] in set2]
+        files_list = files_list1
+        # print("Number of unique ids:", len(ids)) 
+        # print("Number of unique ids in set1:", len(set1))
+        # print("Number of unique ids in set2:", len(set2))
+        # print("Number of files in set1:", len(files_list))
+        # print("Number of files in set2:", len(files_list2))
+        
     # Only keep full file names with unique id in name
     # if only_unique_ids:
     #     files_unique = []
@@ -83,7 +105,8 @@ def create_temporary_directory(directory, n_samples, lower_bound=False, only_uni
         # copy the same images to another directory
         temp_dir2 = os.path.join("tmp", directory + str(random.getrandbits(128)))
         os.makedirs(temp_dir2, exist_ok=False)
-        random_files_list = random.sample(files_list, n_samples)
+        print("Getting", n_samples, "random samples from", len(files_list2), "samples")
+        random_files_list = random.sample(files_list2, n_samples)
 
         for file in random_files_list:
             shutil.copyfile(
@@ -96,18 +119,9 @@ def create_temporary_directory(directory, n_samples, lower_bound=False, only_uni
     return temp_dir
 
 
-if __name__ == "__main__":
-    args = parse_args()
+def calculate_fid(directory_1, directory_2, keyword_1=None, keyword_2=None, n_samples=500):
 
-    directory_1 = args.dataset_path_1
-    directory_2 = args.dataset_path_2
-    keyword_1 = args.keyword_1
-    keyword_2 = args.keyword_2
-    # directory_1 = "training/stacked_EDES_fold_0_prev_0_01/target"
-    # directory_2 = "training/stacked_EDES_fold_0_prev_0_01/target"
-    n_samples = 2000
-
-    if directory_1 == directory_2:
+    if directory_1 == directory_2 and keyword_1 == keyword_2:
         lower_bound = True
         print("Calculating lower bound of FID between unique ids in the same dataset")
     else:
@@ -119,12 +133,88 @@ if __name__ == "__main__":
         temp_dir1 = create_temporary_directory(directory_1, n_samples, keyword=keyword_1)
         temp_dir2 = create_temporary_directory(directory_2, n_samples, keyword=keyword_2)
 
-    print("Calculated between", temp_dir1, "and", temp_dir2, "with", n_samples, "samples")
+    # print("Calculated between", temp_dir1, "and", temp_dir2, "with", n_samples, "samples")
 
     # execute command to calculate FID
     command = f"python -m pytorch_fid {temp_dir1} {temp_dir2}"
-    training_process = subprocess.run(command, shell=True)
-
+    training_process = subprocess.run(command, shell=True, stdout=subprocess.PIPE)
+    
     # remove temporary directories
     shutil.rmtree(temp_dir1)
     shutil.rmtree(temp_dir2)
+
+    for line in training_process.stdout.decode("utf-8").split("\n"):
+        if "FID" in line:
+            return float(line.split(" ")[-1])
+
+
+if __name__ == "__main__":
+    args = parse_args()
+
+    directory_1 = args.dataset_path_1
+    directory_2 = args.dataset_path_2
+    keyword_1 = args.keyword_1
+    keyword_2 = args.keyword_2
+    full_evaluation = args.array_eval
+    # directory_1 = "training/stacked_EDES_fold_0_prev_0_01/target"
+    # directory_2 = "training/stacked_EDES_fold_0_prev_0_01/target"
+
+    if full_evaluation:
+        sex = ["Male", "Female"]
+        bmi = ["normal", "obese"]
+        age = ["in_50s", "in_70s"]
+        age2 = ["in_50s", "in_80s"]
+        disease = ["healthy", "heart_failure"]
+        features = {"sex": sex, "bmi": bmi, "age": age, "disease": disease}
+        # features = {"sex": sex, "bmi": bmi}
+        repetitions = 4
+        if directory_1 != directory_2:
+            directories = [directory_1, directory_2]
+        else:
+            directories = [directory_1]
+        # Calculate FID for all combinations in subgroup
+        results = {}
+        for directory_2 in directories:
+            fids_per_feature = {}
+            fids = []
+            for run in range(repetitions):
+                fid = calculate_fid(directory_1, directory_2)
+                fids.append(fid)
+            # Assign mean and standard deviation
+            fids_per_feature["Base"] = [("FID", f'{np.mean(fids):.2f} ({np.std(fids):.2f})')]
+            # fids_per_feature["Base"] = [("FID", f'{fid:.2f}')]
+
+            for feature, keywords in features.items():
+                for keyword_1 in keywords:
+                    for keyword_2 in keywords:
+                        print("Calculating FID between", keyword_1, "and", keyword_2, "in", feature)
+                        fids = []
+                        for run in range(repetitions):
+                            fid = calculate_fid(directory_1, directory_2, keyword_1, keyword_2)
+                            fids.append(fid)
+
+                        if fids_per_feature.get(feature):
+                            fids_per_feature[feature].append(((keyword_1, keyword_2), f'{np.mean(fids):.2f} ({np.std(fids):.2f})'))
+                            # fids_per_feature[feature].append(((keyword_1, keyword_2), f'{fid:.2f}'))
+                        else:
+                            fids_per_feature[feature] = [((keyword_1, keyword_2), f'{np.mean(fids):.2f} ({np.std(fids):.2f})')]
+                            # fids_per_feature[feature] = [((keyword_1, keyword_2), f'{fid:.2f}')]
+
+            results[directory_2] = fids_per_feature
+            
+        for directory in directories:
+            if directory_1 == directory:
+                print("\nReal vs Real")
+            else:
+                print("\nReal vs Synthetic")
+            fids_per_feature = results[directory]
+            for feature, fids in fids_per_feature.items():
+                print("\n", feature)
+                for fid in fids:
+                    print(fid[0], ":", fid[1])
+        
+    else:
+        fid = calculate_fid(directory_1, directory_2, keyword_1, keyword_2)
+        print("FID:", fid)
+
+
