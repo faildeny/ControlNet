@@ -1,4 +1,6 @@
 from share import *
+from datetime import datetime
+import os
 
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
@@ -14,6 +16,12 @@ logger_freq = 300
 learning_rate = 1e-5
 sd_locked = True
 only_mid_control = False
+
+
+appendix = "_512_continue"
+current_time = datetime.now().strftime("%b%d_%H-%M-%S")
+log_dir = os.path.join("logs", current_time + appendix)
+os.makedirs(log_dir, exist_ok=True)
 
 
 # First use cpu to load models. Pytorch Lightning will automatically move it to GPUs.

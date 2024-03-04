@@ -17,9 +17,15 @@ from cldm.ddim_hacked import DDIMSampler
 # model_checkpoint = 'lightning_logs/version_23/checkpoints/epoch=3-step=121187.ckpt'
 model_checkpoint = 'logs/Nov29_13-05-17_model_SD_1.5_128_lr_1e-05_sd_locked_True_control_locked_False/lightning_logs/version_0/checkpoints/epoch=24-step=94699.ckpt' # 128
 model_checkpoint = 'logs/Nov30_12-47-55_model_SD_2.1_512_lr_1e-05_sd_locked_True_control_locked_False/lightning_logs/version_0/checkpoints/epoch=4-step=227229.ckpt' # 512
+model_checkpoint = 'logs/Jan09_17-44-35_model_SD_2.1_512_lr_1e-05_sd_locked_True_control_locked_False_long_trained_25k/lightning_logs/version_0/checkpoints/epoch=8-step=409013.ckpt'
+model_checkpoint = 'logs/Jan16_16-59-59_model_SD_2.1_512_lr_1e-05_sd_locked_True_control_locked_False_40k/lightning_logs/version_0/checkpoints/epoch=0-step=88586.ckpt'
+model_checkpoint = 'models/_128_epoch=3-step=59059.ckpt'
+model_checkpoint = 'logs/Feb25_11-03-17_model_SD_2.1_512_lr_1e-05_sd_lck_1_sd_f_hlf_1_c_lck_0continue/lightning_logs/version_0/checkpoints/epoch=2-step=265760.ckpt'
+# model_checkpoint = 'logs/Feb08_17-48-07_model_SD_2.1_512_lr_1e-05_sd_lck_1_sd_f_hlf_1_c_lck_0continue/lightning_logs/version_0/checkpoints/epoch=2-step=265760.ckpt'
+# model_checkpoint = 'logs/Jan26_16-28-11_model_SD_1.5_512_lr_2e-06_sd_locked_Falsesd_first_half_True_control_locked_True/lightning_logs/version_0/checkpoints/epoch=2-step=265760.ckpt'
 # model_checkpoint = 'lightning_logs/version_43/checkpoints/epoch=18-step=71971.ckpt' # 128
 # 
-res = 512 
+res = 512
 
 
 model = create_model('./models/cldm_v21.yaml').cuda()
@@ -115,7 +121,7 @@ with block:
         gr.Markdown("## Control Stable Diffusion with Cardiac Segmentation Mask")
     with gr.Row():
         with gr.Column():
-            prompt = gr.Textbox(label="Prompt", value="Female, in age 70s, normal BMI, healthy", placeholder="Female, in age 70s, normal BMI, healthy")
+            prompt = gr.Textbox(label="Prompt", value="Female, age in 70s, overweight BMI, healthy", placeholder="Female, age in 70s, overweight BMI, healthy")
             input_image = gr.Image(sources='upload', type="numpy", height=256)
             run_button = gr.Button(value="Generate")
             with gr.Accordion("Advanced options", open=False):

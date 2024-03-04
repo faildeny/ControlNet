@@ -7,13 +7,14 @@ from torch.utils.data import Dataset
 
 
 class MyDataset(Dataset):
-    def __init__(self, dataset_path):
+    def __init__(self, dataset_path, sample_weight_clipping=10):
         self.data = []
         self.dataset_path = dataset_path
         with open(dataset_path+'prompt.json', 'rt') as f:
             for line in f:
                 self.data.append(json.loads(line))
         print("Loaded ", len(self.data), " samples.")
+        self.sample_weight_clipping = sample_weight_clipping
         self.sample_weights = self.calculate_sample_weights()
 
     def __len__(self):
@@ -55,7 +56,7 @@ class MyDataset(Dataset):
                 class_sizes[item['prompt']] = 0
             class_sizes[item['prompt']] += 1
         
-        max_weight = 1 / (len(self.data)/100) # 1% of the total number of samples
+        max_weight = 1 / (9*self.sample_weight_clipping) # 1% of the total number of samples
 
         class_sizes = dict(sorted(class_sizes.items(), key=lambda item: item[1], reverse=True))
         # for prompt, count in class_sizes.items():

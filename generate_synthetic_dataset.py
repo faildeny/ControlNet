@@ -12,7 +12,7 @@ import einops
 import numpy as np
 import torch
 import random
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from tutorial_dataset import MyDataset
 
 from pytorch_lightning import seed_everything
@@ -36,14 +36,18 @@ output_size = 120
 # model_checkpoint = 'lightning_logs/version_23/checkpoints/epoch=3-step=121187.ckpt' # 512
 # model_checkpoint = 'lightning_logs/version_43/checkpoints/epoch=18-step=71971.ckpt' # 128 
 # model_checkpoint = "logs/Jan16_16-59-59_model_SD_2.1_512_lr_1e-05_sd_locked_True_control_locked_False_40k/lightning_logs/version_0/checkpoints/epoch=0-step=88586.ckpt"
-model_checkpoint = "logs/Jan26_16-28-11_model_SD_1.5_512_lr_2e-06_sd_locked_Falsesd_first_half_True_control_locked_True/lightning_logs/version_0/checkpoints/epoch=2-step=265760.ckpt"
-model_checkpoint = "models/_128_epoch=3-step=59059.ckpt"
-# model_checkpoint = "logs/Feb08_17-48-07_model_SD_2.1_512_lr_1e-05_sd_lck_1_sd_f_hlf_1_c_lck_0continue/lightning_logs/version_0/checkpoints/epoch=2-step=265760.ckpt"
+# model_checkpoint = "logs/Jan26_16-28-11_model_SD_1.5_512_lr_2e-06_sd_locked_Falsesd_first_half_True_control_locked_True/lightning_logs/version_0/checkpoints/epoch=2-step=265760.ckpt"
+# model_checkpoint = "logs/Feb16_17-13-55_model_SD_2.1_512_lr_1e-05_sd_lck_1_sd_f_hlf_1_c_lck_0continue/lightning_logs/version_0/checkpoints/epoch=1-step=177173.ckpt"
+# model_checkpoint = "logs/Feb20_23-20-18_model_SD_2.1_512_lr_1e-05_sd_lck_1_sd_f_hlf_1_c_lck_0continue/lightning_logs/version_0/checkpoints/epoch=1-step=177173.ckpt"
+model_checkpoint = "logs/Feb25_11-03-17_model_SD_2.1_512_lr_1e-05_sd_lck_1_sd_f_hlf_1_c_lck_0continue/lightning_logs/version_0/checkpoints/epoch=2-step=265760.ckpt"
+# model_checkpoint = "models/_128_SD_epoch=2-step=44294.ckpt"
+# model_checkpoint = "models/_128_SD_epoch=5-step=88589.ckpt"
+
 
 if '_512_' in model_checkpoint:
-    source_dataset_path = "./training/stacked_EDES_fold_0_prev_0_01_resized_512/"
+    source_dataset_path = "/data/stacked_EDES_fold_0_prev_0_01_resized_512/"
 elif '_128_' in model_checkpoint:
-    source_dataset_path = "./training/stacked_EDES_fold_0_prev_0_01_resized_128/"
+    source_dataset_path = "/data/stacked_EDES_fold_0_prev_0_01_resized_128/"
 else:
     raise ValueError("Unrecognized image resoultion")
     
@@ -158,7 +162,7 @@ def process(input_image, prompt, a_prompt, n_prompt, num_samples, image_resoluti
         
     return x_samples
 
-def generate_synthetic_copy(dataset_path, output_path=None, per_sample_multiplier=1):
+def generate_synthetic_copy(dataset_path, output_path=None, per_sample_multiplier=1, n_samples=None):
     """
     Generate synthetic version of dataset with real prompts and corresponding masks
     """
@@ -170,25 +174,43 @@ def generate_synthetic_copy(dataset_path, output_path=None, per_sample_multiplie
         print(os.path.basename(dataset_path))
         output_name = os.path.basename(dataset_path) + "_synthetic"
         output_dir = os.path.join(out_dir, output_name)
+    else:
+        output_dir = output_path
 
     os.makedirs(output_dir, exist_ok=True)
 
-    dataset = MyDataset()
-    dataloader = DataLoader(dataset, num_workers=20, batch_size=1, shuffle=True)
+    dataset = MyDataset(dataset_path, sample_weight_clipping=5)
+    n_samples = len(dataset) if n_samples is None else n_samples
+    sampler = WeightedRandomSampler(dataset.sample_weights, len(dataset))
+    dataloader = DataLoader(dataset, num_workers=20, batch_size=1, sampler=sampler)
+    counter = 0
     for item in tqdm(dataloader):
         jpg = item['jpg'][0]
         txt = item['txt'][0]
         hint = item['hint'][0]
+        if "failure" not in txt:
+            if "healthy" not in txt:
+                continue
         filename = item['filename'][0]
         samples = process(hint, txt, "", "", per_sample_multiplier, hint.shape[1])
         for i in range(samples.shape[0]):
             sample = samples[i]
             # sample = sample.transpose(1, 2, 0)
             sample = cv2.cvtColor(sample, cv2.COLOR_RGB2BGR)
+            hint = cv2.cvtColor(hint.numpy() * 255.0, cv2.COLOR_RGB2BGR)
+            sample = cv2.resize(sample, (output_size, output_size))
+            hint = cv2.resize(hint, (output_size, output_size), interpolation=cv2.INTER_NEAREST)
+
             filename = Path(filename).stem
-            output_path = os.path.join(output_dir, f'{filename}_synthetic_{i}.png')
-            print(output_path)
+            unique_id = str(random.getrandbits(128))[:4]
+            output_path = os.path.join(output_dir, f'{filename}_synthetic_{unique_id}.png')
+            # print(output_path)
             cv2.imwrite(output_path, sample)
+            cv2.imwrite(output_path.replace(".png", "_mask.png"), hint)
+
+            counter += 1
+        if counter >= n_samples:
+            break
 
 def generate_images_with_parameter_array(output_dir, steps_min, steps_max, cfg_min, cfg_max):
     """
@@ -301,7 +323,7 @@ def generate_random_prompt_dataset(output_dir, diagnosis_feature, n_samples = 10
         mask = mask.astype(np.float32) / 255.0
         mask = torch.from_numpy(mask)
 
-        sample = process(mask, prompt, "", negative_prompt, 1, mask.shape[1], scale=9)[0]
+        sample = process(mask, prompt, "", negative_prompt, 1, mask.shape[1], scale=9, strength=1)[0]
 
         filename = prompt.replace(", ", "_").replace(" ", "_")
         filename = f'{i}_{filename}_{mask_id}.png'
@@ -321,7 +343,8 @@ def generate_random_prompt_dataset(output_dir, diagnosis_feature, n_samples = 10
 start_time = time.time()
 # generate_random_prompt_dataset("synthetic_dataset/random_dataset_40k_2_1_128_4_epoch2, 'heart failure', 5000, use_negative_prompts=False)
 # generate_random_prompt_dataset("synthetic_dataset/random_dataset_40k_2_1_128_4_epoch_seed", 'heart failure', 5000, use_negative_prompts=False)
-generate_random_prompt_dataset("synthetic_dataset/random_dataset_40k_2_1_128_4_epoch_seed_pre_both", 'heart failure', 5000, use_negative_prompts=False)
+# generate_random_prompt_dataset("synthetic_dataset/128_SD_5", 'heart failure', 5000, use_negative_prompts=False)
+generate_synthetic_copy(source_dataset_path, "synthetic_dataset/synth_copy_512_Control_1_6_more_balance", per_sample_multiplier=1, n_samples=10000)
 # generate_images_with_parameter_array("grid_search/parameter_array", 1, 15, 0, 8)
 # generate_synthetic_copy(source_dataset_path)
 

@@ -27,7 +27,7 @@ gpus = [args.gpu]
 model = '2.1'
 # stage = 'SD'
 stage = 'control'
-size = 128
+size = 512
 balanced_sampling = True
 
 if model == '2.1':
@@ -36,7 +36,8 @@ if model == '2.1':
     # resume_path = 'lightning_logs/version_21/checkpoints/epoch=0-step=30296.ckpt'
     # resume_path = 'lightning_logs/version_23/checkpoints/epoch=3-step=121187.ckpt'
     # resume_path = 'lightning_logs/version_43/checkpoints/epoch=18-step=71971.ckpt' # 128 
-    resume_path = "logs/Jan16_16-59-59_model_SD_2.1_512_lr_1e-05_sd_locked_True_control_locked_False_40k/lightning_logs/version_0/checkpoints/epoch=0-step=88586.ckpt"
+    resume_path = "logs/Feb20_23-20-18_model_SD_2.1_512_lr_1e-05_sd_lck_1_sd_f_hlf_1_c_lck_0continue/lightning_logs/version_0/checkpoints/epoch=1-step=177173.ckpt"
+    # resume_path = 'models/_128_epoch=3-step=59059.ckpt'
 
 elif model == '1.5':
     model_definition = './models/cldm_v15.yaml'
@@ -48,9 +49,9 @@ elif model == '1.5':
 
 batch_size = 1
 if size == 128:
-    dataset_path = "./training/stacked_EDES_fold_0_prev_0_01_resized_128/"
+    dataset_path = "/data/stacked_EDES_fold_0_prev_0_01_resized_128/"
 elif size == 512:
-    dataset_path = "./training/stacked_EDES_fold_0_prev_0_01_resized_512/"
+    dataset_path = "/data/stacked_EDES_fold_0_prev_0_01_resized_512/"
 else:
     raise Exception("Invalid size")
 
@@ -108,7 +109,7 @@ class TimeScheduleSleep(Callback):
 logger_params = dict(sample = True, plot_denoise_rows= False, plot_diffusion_rows= False, unconditional_guidance_scale=6.0)
 
 # Misc
-dataset = MyDataset(dataset_path)
+dataset = MyDataset(dataset_path, sample_weight_clipping=20)
 if balanced_sampling:
     sampler = WeightedRandomSampler(dataset.sample_weights, len(dataset))
     dataloader = DataLoader(dataset, num_workers=20, batch_size=batch_size, sampler=sampler)
